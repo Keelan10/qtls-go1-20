@@ -272,6 +272,7 @@ type connectionState struct {
 	//
 	// VerifiedChains and its contents should not be modified.
 	VerifiedChains [][]*x509.Certificate
+	VerifiedDC     bool
 
 	// SignedCertificateTimestamps is a list of SCTs provided by the peer
 	// through the TLS handshake for the leaf certificate, if any.
@@ -289,6 +290,9 @@ type connectionState struct {
 	// to a connection. See the Security Considerations sections of RFC 5705 and
 	// RFC 7627, and https://mitls.org/pages/attacks/3SHAKE#channelbindings.
 	TLSUnique []byte
+
+	ECHAccepted bool
+	ECHOffered  bool
 
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
@@ -409,6 +413,8 @@ type clientHelloInfo struct {
 	// Algorithms Extension is being used (see RFC 5246, Section 7.4.1.4.1).
 	SignatureSchemes []SignatureScheme
 
+	SignatureSchemesDC []SignatureScheme
+
 	// SupportedProtos lists the application protocols supported by the client.
 	// SupportedProtos is set only if the Application-Layer Protocol
 	// Negotiation Extension is being used (see RFC 7301, Section 3.1).
@@ -422,6 +428,8 @@ type clientHelloInfo struct {
 	// version advertised by the client, so values other than the greatest
 	// might be rejected if used.
 	SupportedVersions []uint16
+
+	SupportsDelegatedCredential bool
 
 	// Conn is the underlying net.Conn for the connection. Do not read
 	// from, or write to, this connection; that will cause the TLS
@@ -455,9 +463,12 @@ type certificateRequestInfo struct {
 	// empty slice indicates that the server has no preference.
 	AcceptableCAs [][]byte
 
+	SupportsDelegatedCredential bool
+
 	// SignatureSchemes lists the signature schemes that the server is
 	// willing to verify.
-	SignatureSchemes []SignatureScheme
+	SignatureSchemes   []SignatureScheme
+	SignatureSchemesDC []SignatureScheme
 
 	// Version is the TLS version that was negotiated for this connection.
 	Version uint16
@@ -705,6 +716,8 @@ type config struct {
 	// its key share in TLS 1.3. This may change in the future.
 	CurvePreferences []CurveID
 
+	PQSignatureSchemesEnabled bool
+
 	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.
 	// When true, the largest possible TLS record size is always used. When
 	// false, the size of TLS records may be adjusted in an attempt to
@@ -722,6 +735,12 @@ type config struct {
 	// Use of KeyLogWriter compromises security and should only be
 	// used for debugging.
 	KeyLogWriter io.Writer
+
+	ECHEnabled bool
+
+	ClientECHConfigs           []tls.ECHConfig
+	ServerECHProvider          tls.ECHProvider
+	SupportDelegatedCredential bool
 
 	// mutex protects sessionTicketKeys and autoSessionTicketKeys.
 	mutex sync.RWMutex
